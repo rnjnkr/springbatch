@@ -17,19 +17,24 @@ import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.validation.BindException;
 
 import java.util.Objects;
 
 @Configuration
 @EnableBatchProcessing
 public class SpringBatchConfig {
+    @Value("${csv.headers}")
+    String[] csvHeaders;
+
+    @Value("${number.of.thread}")
+    int threadCount;
 
     @Autowired
     private JobBuilderFactory jobBuilderFactory;
@@ -56,7 +61,7 @@ public class SpringBatchConfig {
         DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
         lineTokenizer.setDelimiter(",");
         lineTokenizer.setStrict(false);
-        lineTokenizer.setNames("id", "amount", "currency", "comment");
+        lineTokenizer.setNames(csvHeaders);
 
         BeanWrapperFieldSetMapper<Order> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
         fieldSetMapper.setTargetType(Order.class); // amount = 323 or "323" are handled here
@@ -84,7 +89,7 @@ public class SpringBatchConfig {
                 .reader(fileReader())
                 .faultTolerant()
                 .skipPolicy(new AlwaysSkipItemSkipPolicy())
-                .skip(RuntimeException.class) //skip any exception i.e bad record and continue further
+                .skip(RuntimeException.class) //skip any exception i.e. bad record and continue further
                 .noRetry(RuntimeException.class)
                 .processor(processor())
                 .writer(writer())
@@ -100,7 +105,7 @@ public class SpringBatchConfig {
     @Bean
     public TaskExecutor taskExecutor() {
         SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
-        taskExecutor.setConcurrencyLimit(10);
+        taskExecutor.setConcurrencyLimit(threadCount);
         return taskExecutor;
     }
 
